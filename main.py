@@ -12,92 +12,81 @@ ADMIN_ID = 7291844509
 bot = telebot.TeleBot(TOKEN)
 
 def get_image(query):
-    """Render-da rasmlarni qidirish funksiyasi"""
+    """Mavzuga mos yuqori sifatli rasm topish"""
     try:
-        # Unsplash inglizcha so'rovlarda yaxshi ishlaydi
         translated = GoogleTranslator(source='auto', target='en').translate(query)
         search_word = translated.split()[-1]
-        
-        # Render-da bloklanmaydigan rasm manbasi
-        url = f"https://source.unsplash.com/featured/800x600?{search_word}"
+        # Unsplash API orqali professional fotosuratlar
+        url = f"https://source.unsplash.com/1200x800/?{search_word}"
         headers = {'User-Agent': 'Mozilla/5.0'}
-        
         res = requests.get(url, headers=headers, timeout=20)
         if res.status_code == 200:
-            file_path = "temp_pic.jpg"
-            with open(file_path, "wb") as f:
-                f.write(res.content)
-            return file_path
-    except:
-        return None
+            path = "temp_img.jpg"
+            with open(path, "wb") as f: f.write(res.content)
+            return path
+    except: return None
     return None
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "🌟 **Gamma AI Slayd Botga xush kelibsiz!**\nMavzuni yuboring va men rasmli premium slayd tayyorlayman.")
+    bot.reply_to(message, "🌟 **Gamma AI Slayd Bot!**\nMavzuni yuboring va men professional dizayndagi rasmli slayd tayyorlayman.")
 
 @bot.message_handler(func=lambda m: True)
-def create_presentation(message):
-    mavzu_uz = message.text
-    
-    # ADMINGA BILDIRISHNOMA (Sizga xabar yuboradi)
-    try:
-        user_info = f"👤 Foydalanuvchi: {message.from_user.first_name}\n🆔 ID: {message.from_user.id}\n📝 Mavzu: {mavzu_uz}"
-        bot.send_message(ADMIN_ID, f"🔔 **Yangi buyurtma keldi:**\n\n{user_info}")
-    except:
-        pass
+def create_ppt(message):
+    mavzu = message.text
+    # Adminga bildirishnoma
+    try: bot.send_message(ADMIN_ID, f"🔔 **Yangi slayd:**\n👤 {message.from_user.first_name}\n📝 Mavzu: {mavzu}")
+    except: pass
 
-    bot.reply_to(message, f"🚀 '{mavzu_uz}' bo'yicha rasmli slayd yaratilmoqda...")
+    bot.reply_to(message, f"🚀 '{mavzu}' ustida Gamma AI uslubida ishlayapman...")
     
     try:
         prs = Presentation()
-        # 16:9 format
-        prs.slide_width, prs.slide_height = Inches(13.33), Inches(7.5)
+        prs.slide_width, prs.slide_height = Inches(13.33), Inches(7.5) # 16:9 keng format
         
-        reja = ["Kirish", "Asosiy tushunchalar", "Tarixi", "Innovatsiyalar", "Xulosa"]
+        reja = ["Kirish va Umumiy tahlil", "Tarixiy rivojlanish", "Asosiy xususiyatlar", "Innovatsion yechimlar", "Xulosa va Istiqbollar"]
 
         for i, qism in enumerate(reja):
             slide = prs.slides.add_slide(prs.slide_layouts[5])
             
-            # Gamma AI uslubidagi to'q fon
-            fill = slide.background.fill
-            fill.solid()
-            fill.fore_color.rgb = RGBColor(15, 20, 35)
+            # Gamma AI kabi to'q va zamonaviy fon
+            bg = slide.background.fill
+            bg.solid()
+            bg.fore_color.rgb = RGBColor(10, 15, 30)
 
-            # Sarlavha (Neon yashil rangda)
-            title = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(1))
-            p = title.text_frame.paragraphs[0]
-            p.text = f"{i+1}. {qism}: {mavzu_uz}"
-            p.font.bold, p.font.size = True, Pt(34)
-            p.font.color.rgb = RGBColor(0, 255, 180)
+            # Sarlavha (Neon dizayn)
+            title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(1))
+            tf = title.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"{i+1}. {qism}"
+            p.font.bold, p.font.size = True, Pt(40)
+            p.font.color.rgb = RGBColor(0, 255, 180) # Neon yashil
 
-            # Rasm qidirish va qo'shish (O'ng tomonda)
-            img_path = get_image(f"{mavzu_uz} {qism}")
-            if img_path and os.path.exists(img_path):
-                slide.shapes.add_picture(img_path, Inches(7.2), Inches(1.2), Inches(5.8), Inches(5.5))
+            # Rasm (Gamma kabi o'ng tomonda katta va sifatli)
+            img = get_image(f"{mavzu} {qism}")
+            if img:
+                slide.shapes.add_picture(img, Inches(7.0), Inches(1.2), Inches(6.0), Inches(5.8))
 
-            # Matn (Chap tomonda)
-            body = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(6.5), Inches(5))
-            tf = body.text_frame
-            tf.word_wrap = True
-            cp = tf.paragraphs[0]
-            cp.text = f"{mavzu_uz} haqida {qism.lower()} tahlili va muhim faktlar."
-            cp.font.size, cp.font.color.rgb = Pt(24), RGBColor(255, 255, 255)
+            # Matn bloklari (Chap tomonda)
+            body = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(6.0), Inches(5))
+            btf = body.text_frame
+            btf.word_wrap = True
+            cp = btf.paragraphs[0]
+            cp.text = f"➤ {mavzu} mavzusining {qism.lower()} qismi bo'yicha tahliliy ma'lumotlar.\n\n➤ Ushbu sohadagi eng so'nggi yangiliklar va faktlar to'plami."
+            cp.font.size, cp.font.color.rgb = Pt(26), RGBColor(240, 240, 240)
 
-        # Faylni saqlash va yuborish
-        fayl_nomi = f"Slayd_{message.chat.id}.pptx"
-        prs.save(fayl_nomi)
-        with open(fayl_nomi, 'rb') as f:
-            bot.send_document(message.chat.id, f, caption="✅ Slaydingiz tayyor!")
+        name = f"Gamma_{message.chat.id}.pptx"
+        prs.save(name)
+        with open(name, 'rb') as f:
+            bot.send_document(message.chat.id, f, caption=f"✅ '{mavzu}' bo'yicha professional slayd tayyor!")
         
-        # Tozalash
-        os.remove(fayl_nomi)
-        if os.path.exists("temp_pic.jpg"): os.remove("temp_pic.jpg")
+        os.remove(name)
+        if os.path.exists("temp_img.jpg"): os.remove("temp_img.jpg")
             
     except Exception as e:
-        bot.reply_to(message, f"❌ Xatolik yuz berdi: {str(e)}")
+        bot.reply_to(message, f"❌ Xato: {str(e)}")
 
-print("Bot Render serverida muvaffaqiyatli ishga tushdi...")
+print("Bot Render-da Gamma AI rejimida ishga tushdi...")
 bot.infinity_polling()
 
 
