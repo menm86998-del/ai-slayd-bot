@@ -4,90 +4,77 @@ import requests
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
-from transformers import pipeline
 from deep_translator import GoogleTranslator
 
-# Sozlamalar
+# Bot TOKEN
 TOKEN = '8267155928:AAHjwuV8UzktREiy1m36dlL1hU92wvdyLlw'
 bot = telebot.TeleBot(TOKEN)
 
-print("Gamma AI tizimi yuklanmoqda...")
-generator = pipeline('text-generation', model='distilgpt2')
-translator_to_en = GoogleTranslator(source='uz', target='en')
-translator_to_uz = GoogleTranslator(source='en', target='uz')
-
 def get_image(query):
-    """Mavzuga mos HD rasm topish"""
-    url = f"https://source.unsplash.com/1600x900/?{query.replace(' ', ',')}"
+    # Render-da rasmlar bloklanmaydi
+    url = f"https://source.unsplash.com/featured/800x600?{query.replace(' ', ',')}"
     try:
-        res = requests.get(url, timeout=10)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=15)
         if res.status_code == 200:
-            with open("gamma_img.jpg", "wb") as f:
+            with open("slayd_img.jpg", "wb") as f:
                 f.write(res.content)
-            return "gamma_img.jpg"
-    except: return None
+            return "slayd_img.jpg"
+    except:
+        return None
     return None
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "🌟 **Gamma AI Slayd Botga xush kelibsiz!**\nMavzuni yuboring, men sizga 15 sahifali premium taqdimot tayyorlab beraman.")
+    bot.reply_to(message, "🌟 **Gamma AI Slayd Botga xush kelibsiz!**\nMavzuni yuboring va men 15 sahifali premium slayd tayyorlayman.")
 
 @bot.message_handler(func=lambda m: True)
-def generate_presentation(message):
+def create_presentation(message):
     mavzu_uz = message.text
-    bot.reply_to(message, f"🚀 '{mavzu_uz}' mavzusida Gamma AI uslubida slayd yaratilmoqda...")
-
+    bot.reply_to(message, f"🚀 '{mavzu_uz}' bo'yicha slayd yaratilmoqda...")
+    
     try:
         prs = Presentation()
-        # Slayd o'lchamini 16:9 (keng ekran) qilish
-        prs.slide_width = Inches(13.33)
-        prs.slide_height = Inches(7.5)
-
-        reja = ["Kirish", "Asosiy tushunchalar", "Strategiya", "Tahlil", "Innovatsiya", "Global tajriba", "Afzalliklar", "Kamchiliklar", "Yechimlar", "Statistika", "Kelajak", "Xulosa", "Savollar", "Kontaktlar", "Rahmat"]
+        prs.slide_width, prs.slide_height = Inches(13.33), Inches(7.5) # 16:9 format
+        
+        reja = ["Kirish", "Tarixi", "Asosiy qism", "Dolzarbligi", "Innovatsiyalar", "Afzalliklar", "Global tajriba", "Muammolar", "Yechimlar", "Faktlar", "Statistika", "Tahlil", "Kelajak", "Xulosa", "Rahmat"]
 
         for i, qism in enumerate(reja):
-            slide = prs.slides.add_slide(prs.slide_layouts[5]) # Bo'sh layout (Blank)
-            
-            # 1. Premium Fon (Gradient ko'rinishida to'q rang)
+            slide = prs.slides.add_slide(prs.slide_layouts[5])
+            # Gamma AI uslubidagi to'q fon
             fill = slide.background.fill
             fill.solid()
-            fill.fore_color.rgb = RGBColor(15, 20, 35)
+            fill.fore_color.rgb = RGBColor(10, 20, 40)
 
-            # 2. Sarlavha (Gamma uslubida)
-            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(1))
-            tf = title_box.text_frame
-            p = tf.paragraphs[0]
+            # Sarlavha
+            title = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(1))
+            p = title.text_frame.paragraphs[0]
             p.text = f"{i+1}. {qism}: {mavzu_uz}"
-            p.font.bold = True
-            p.font.size = Pt(32)
-            p.font.color.rgb = RGBColor(0, 200, 255) # Neon ko'k
+            p.font.bold, p.font.size = True, Pt(32)
+            p.font.color.rgb = RGBColor(0, 255, 200)
 
-            # 3. AI Matn (Qisqa va lo'nda)
-            mavzu_en = translator_to_en.translate(f"Key points about {mavzu_uz} in {qism}")
-            res = generator(mavzu_en, max_new_tokens=50, num_return_sequences=1)
-            matn_uz = translator_to_uz.translate(res[0]['generated_text'])
+            # Matn
+            body = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(6), Inches(5))
+            tf = body.text_frame
+            tf.word_wrap = True
+            cp = tf.paragraphs[0]
+            cp.text = f"{mavzu_uz} bo'yicha {qism.lower()} tahlili va muhim ma'lumotlar."
+            cp.font.size, cp.font.color.rgb = Pt(22), RGBColor(255, 255, 255)
 
-            content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(6), Inches(5))
-            ctf = content_box.text_frame
-            ctf.word_wrap = True
-            cp = ctf.paragraphs[0]
-            cp.text = matn_uz
-            cp.font.size = Pt(18)
-            cp.font.color.rgb = RGBColor(255, 255, 255)
-
-            # 4. HD Rasm (O'ng tomonda katta)
+            # Rasm (O'ngda)
             img = get_image(f"{mavzu_uz} {qism}")
             if img:
-                slide.shapes.add_picture(img, Inches(7), Inches(1.2), Inches(5.5), Inches(5.5))
+                slide.shapes.add_picture(img, Inches(7), Inches(1.2), Inches(5.8), Inches(5.5))
 
-        fayl = f"Gamma_{message.chat.id}.pptx"
-        prs.save(fayl)
-        with open(fayl, 'rb') as f:
-            bot.send_document(message.chat.id, f, caption="✅ Gamma AI darajasidagi taqdimotingiz tayyor!")
-        os.remove(fayl)
-
+        fayl_nomi = f"Slayd_{message.chat.id}.pptx"
+        prs.save(fayl_nomi)
+        with open(fayl_nomi, 'rb') as f:
+            bot.send_document(message.chat.id, f, caption="✅ Slaydingiz tayyor!")
+        os.remove(fayl_nomi)
+        if os.path.exists("slayd_img.jpg"): os.remove("slayd_img.jpg")
+        
     except Exception as e:
-        bot.reply_to(message, "Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.")
+        bot.reply_to(message, "Xatolik yuz berdi, qayta urinib ko'ring.")
 
+print("Bot ishga tushdi...")
 bot.infinity_polling()
