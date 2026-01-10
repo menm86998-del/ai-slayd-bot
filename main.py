@@ -11,17 +11,20 @@ TOKEN = '8267155928:AAHjwuV8UzktREiy1m36dlL1hU92wvdyLlw'
 bot = telebot.TeleBot(TOKEN)
 
 def get_image(query):
-    # Render-da rasmlar bloklanmaydi
-    url = f"https://source.unsplash.com/featured/800x600?{query.replace(' ', ',')}"
+    # Agar so'rov juda uzun bo'lsa, faqat oxirgi so'zni olamiz (aniqroq chiqadi)
+    short_query = query.split()[-1] 
+    url = f"https://source.unsplash.com/featured/800x600?{short_query}"
+    
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers=headers, timeout=15)
+        # Vaqtni 20 soniyaga uzaytirdik
+        res = requests.get(url, headers=headers, timeout=20)
         if res.status_code == 200:
-            with open("slayd_img.jpg", "wb") as f:
+            with open("temp_pic.jpg", "wb") as f:
                 f.write(res.content)
-            return "slayd_img.jpg"
-    except:
-        return None
+            return "temp_pic.jpg"
+    except Exception as e:
+        print(f"Rasmda xato: {e}")
     return None
 
 @bot.message_handler(commands=['start'])
@@ -63,8 +66,9 @@ def create_presentation(message):
 
             # Rasm (O'ngda)
             img = get_image(f"{mavzu_uz} {qism}")
-            if img:
-                slide.shapes.add_picture(img, Inches(7), Inches(1.2), Inches(5.8), Inches(5.5))
+           # Rasm o'ng tomonda chiroyli joylashishi uchun
+if img:
+    slide.shapes.add_picture(img, Inches(7.5), Inches(1), Inches(5.5), Inches(5.5))
 
         fayl_nomi = f"Slayd_{message.chat.id}.pptx"
         prs.save(fayl_nomi)
@@ -78,3 +82,4 @@ def create_presentation(message):
 
 print("Bot ishga tushdi...")
 bot.infinity_polling()
+
