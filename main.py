@@ -1,88 +1,80 @@
 import telebot
-import os
-import requests
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.dml.color import RGBColor
-from deep_translator import GoogleTranslator
+import requests
+import os
+import io
+from g4f.client import Client # Bepul AI kutubxonasi
 
-# BOT SOZLAMALARI
-TOKEN = '8267155928:AAFejnBDo_o_KgM3bY5DMzcWSP3ZBseMk9k'
-ADMIN_ID = 7291844509 
-bot = telebot.TeleBot(TOKEN)
+# 1. SOZLAMALAR
+BOT_TOKEN = "8462276425:AAEgRcsPSia3PxqTcyg2rn99ef92mfHg0fs"
+bot = telebot.TeleBot(BOT_TOKEN)
+client = Client()
 
-def get_image(query):
+# 2. BEPUL AI ORQALI MATN YARATISH
+def get_ai_content(topic):
     try:
-        translated = GoogleTranslator(source='auto', target='en').translate(query)
-        search_word = translated.split()[-1]
-        url = f"https://source.unsplash.com/1200x800/?{search_word}"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers=headers, timeout=20)
-        if res.status_code == 200:
-            path = "temp_img.jpg"
-            with open(path, "wb") as f: f.write(res.content)
-            return path
-    except: return None
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": f"Menga '{topic}' mavzusida 15 ta slayd uchun reja ber. Har bir slayd sarlavhasi va 3 qator matni bo'lsin. O'zbek tilida."}]
+        )
+        return response.choices[0].message.content
+    except:
+        return f"{topic} haqida ma'lumot\nBu yerga matn kiritiladi."
 
-@bot.message_handler(func=lambda m: True)
-def create_ppt(message):
-    mavzu = message.text
-    try: bot.send_message(ADMIN_ID, f"🔔 15 betlik buyurtma: {mavzu}\n👤 {message.from_user.first_name}")
-    except: pass
-
-    bot.reply_to(message, f"🚀 '{mavzu}' bo'yicha 15 betlik premium slayd tayyorlanmoqda. Bu biroz vaqt olishi mumkin...")
+# 3. SLAYDNI YIG'ISH
+def create_presentation(topic, filename):
+    # O'zgarish shu yerda: Bo'sh prezentatsiya emas, shablonni ochamiz
+    if os.path.exists("template.pptx"):
+        prs = Presentation("template.pptx")
+    else:
+        prs = Presentation() # Agar shablon bo'lmasa, oddiy ochiq qoladi
     
-    try:
-        prs = Presentation()
-        prs.slide_width, prs.slide_height = Inches(13.33), Inches(7.5)
+    # AI matnni oladi
+    content = get_ai_content(topic)
+    # Slaydlarni qismlarga bo'lish
+    sections = content.split('\n\n')
+
+    for i in range(15):
+        slide = prs.slides.add_slide(prs.slide_layouts[1])
         
-        # 15 ta bo'limdan iborat reja
-        reja = [
-            "Kirish", "Mavzuning dolzarbligi", "Asosiy maqsadlar", "Tarixiy fon", 
-            "Joriy holat tahlili", "Asosiy tushunchalar", "Statistik ma'lumotlar", 
-            "Muammolar va to'siqlar", "Innovatsion yechimlar", "Xalqaro tajriba", 
-            "Amaliy misollar", "Kelajakdagi istiqbollar", "Kutilayotgan natijalar", 
-            "Xulosa", "Foydalanilgan adabiyotlar"
-        ]
+        # Sarlavha va matnni kiritish
+        if i < len(sections):
+            text_parts = sections[i].split('\n')
+            slide.shapes.title.text = text_parts[0]
+            slide.placeholders[1].text = "\n".join(text_parts[1:])
+        else:
+            slide.shapes.title.text = f"{topic} - Davomi"
+            slide.placeholders[1].text = "Qo'shimcha ma'lumotlar..."
 
-        for i, qism in enumerate(reja):
-            slide = prs.slides.add_slide(prs.slide_layouts[5])
-            slide.background.fill.solid()
-            slide.background.fill.fore_color.rgb = RGBColor(10, 15, 30) # Gamma AI foni
+        # Har bir sahifaga mavzuga mos rasm qo'yish
+        try:
+            img_url = f"https://source.unsplash.com/featured/800x600?{topic.replace(' ', ',')},{i}"
+            img_data = requests.get(img_url, timeout=10).content
+            img_stream = io.BytesIO(img_data)
+            slide.shapes.add_picture(img_stream, Inches(5.5), Inches(2), width=Inches(4))
+        except:
+            pass
 
-            # Sarlavha
-            title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(1))
-            p = title.text_frame.paragraphs[0]
-            p.text = f"{i+1}. {qism}"
-            p.font.bold, p.font.size, p.font.color.rgb = True, Pt(36), RGBColor(0, 255, 180)
+    prs.save(filename)
 
-            # Rasm va Matnni joylashtirish (Har xil uslubda)
-            img = get_image(f"{mavzu} {qism}")
-            
-            if i % 2 == 0: # Juft betlarda: Matn chapda, Rasm o'ngda
-                if img: slide.shapes.add_picture(img, Inches(7.2), Inches(1.5), Inches(5.8), Inches(5.0))
-                body_pos = (Inches(0.5), Inches(1.8), Inches(6.0), Inches(5))
-            else: # Toq betlarda: Rasm chapda, Matn o'ngda
-                if img: slide.shapes.add_picture(img, Inches(0.5), Inches(1.5), Inches(5.8), Inches(5.0))
-                body_pos = (Inches(6.8), Inches(1.8), Inches(6.0), Inches(5))
-
-            body = slide.shapes.add_textbox(*body_pos)
-            btf = body.text_frame
-            btf.word_wrap = True
-            cp = btf.paragraphs[0]
-            cp.text = f"{mavzu} haqida batafsil ma'lumot: {qism.lower()} bo'yicha ilmiy va amaliy tahlillar."
-            cp.font.size, cp.font.color.rgb = Pt(22), RGBColor(255, 255, 255)
-
-        name = f"Gamma_15_{message.chat.id}.pptx"
-        prs.save(name)
-        with open(name, 'rb') as f: bot.send_document(message.chat.id, f, caption=f"✅ '{mavzu}' mavzusida 15 betlik premium slayd tayyor!")
-        os.remove(name)
-        if os.path.exists("temp_img.jpg"): os.remove("temp_img.jpg")
-            
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    topic = message.text
+    msg = bot.reply_to(message, "🚀 Gamma AI (Bepul versiya) ishga tushdi. 15 betlik slayd tayyorlanmoqda, kuting...")
+    
+    file_name = f"{topic}.pptx"
+    try:
+        create_presentation(topic, file_name)
+        with open(file_name, 'rb') as doc:
+            bot.send_document(message.chat.id, doc, caption=f"✅ '{topic}' mavzusidagi 15 betlik slayd tayyor!")
+        os.remove(file_name)
     except Exception as e:
-        bot.reply_to(message, f"❌ Xato: {str(e)}")
+        bot.reply_to(message, f"Xatolik: {str(e)}")
 
-bot.infinity_polling()
+print("Bot muvaffaqiyatli ishga tushdi (Limitsiz versiya)...")
+bot.polling()
+
 
 
 
